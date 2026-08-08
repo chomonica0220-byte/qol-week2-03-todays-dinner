@@ -213,11 +213,7 @@ export default function Home() {
     <main className="app">
       <header>
         <p className="header__eyebrow">Today&apos;s Dinner</p>
-        <h1 className="header__title">
-          냉장고를 찍으면
-          <br />
-          오늘 저녁이 정해져요
-        </h1>
+        <h1 className="header__title">냉장고를 부탁해</h1>
         <p className="header__desc">
           사진 속 재료를 알아보고, 내 취향에 맞는 메뉴를 골라드려요.
         </p>
