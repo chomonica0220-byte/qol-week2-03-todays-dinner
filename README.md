@@ -10,7 +10,7 @@ QOL Week2 과제 3 — **냉장고 사진을 올리면 오늘 만들 수 있는 
 | 요구사항 | 구현 |
 | --- | --- |
 | 냉장고 사진 업로드 | 카메라 촬영(`capture="environment"`) 또는 앨범 선택. 업로드 전 브라우저에서 1536px로 리사이즈 |
-| 이미지 인식 | **Claude API (Vision)** — `claude-opus-5` 모델에 이미지를 보내 재료 목록을 구조화 출력(JSON Schema)으로 수신 |
+| 이미지 인식 | **Google Gemini API (Vision)** — `gemini-3.5-flash` 모델에 이미지를 보내 재료 목록을 구조화 출력(responseSchema)으로 수신 |
 | 요리할 수 있는 것 알려줌 | 인식된 재료 + 사용자가 직접 보탠 재료로 요리 3개 추천. 각 요리마다 쓰는 재료 / 사야 하는 재료를 구분해 표시 |
 | 성향에 따른 추천 | 맵기(5단계), 조리 시간, 인원, 식단 제한(베지테리언·비건·할랄·저탄수), 선호 요리 종류, 싫어하는 재료를 DB에 저장하고 매 추천에 반영 |
 
@@ -18,7 +18,7 @@ QOL Week2 과제 3 — **냉장고 사진을 올리면 오늘 만들 수 있는 
 
 - **Next.js 14** (App Router) — 프론트엔드 + API를 한 프로젝트에서 처리하는 풀스택 구성
 - **TypeScript**
-- **Claude API** (`@anthropic-ai/sdk`) — Vision 이미지 인식 + 구조화 출력
+- **Google Gemini API** (`@google/genai`) — Vision 이미지 인식 + 구조화 출력(JSON Schema 강제)
 - **PostgreSQL** (Supabase) — 취향과 추천 기록 영구 저장
 - **Vercel** 배포
 
@@ -26,11 +26,11 @@ QOL Week2 과제 3 — **냉장고 사진을 올리면 오늘 만들 수 있는 
 
 ```
 사진 촬영 → 브라우저에서 리사이즈 → /api/analyze
-                                        ↓ Claude Vision
+                                        ↓ Gemini Vision
                                    재료 목록(JSON)
                                         ↓ 사용자가 확인·수정
     DB에 저장된 내 취향  ────────→  /api/recommend
-                                        ↓ Claude
+                                        ↓ Gemini
                                  요리 3개 + 레시피 → DB 저장
 ```
 
@@ -53,7 +53,7 @@ QOL Week2 과제 3 — **냉장고 사진을 올리면 오늘 만들 수 있는 
 
 ```bash
 npm install
-cp .env.example .env.local   # ANTHROPIC_API_KEY, DATABASE_URL 입력
+cp .env.example .env.local   # GOOGLE_API_KEY, DATABASE_URL 입력
 npm run dev
 ```
 
@@ -61,9 +61,9 @@ http://localhost:3000 접속.
 
 ### API 키 발급
 
-1. https://console.anthropic.com 접속 → 로그인
-2. **API Keys → Create Key** 로 키 생성 (`sk-ant-...`)
-3. `.env.local` 의 `ANTHROPIC_API_KEY` 에 입력
+1. https://aistudio.google.com/apikey 접속 → 로그인
+2. **Create API key** 로 키 생성
+3. `.env.local` 의 `GOOGLE_API_KEY` 에 입력
 4. 배포 환경에서는 Vercel 프로젝트 환경 변수에 같은 이름으로 등록
 
 키가 없으면 사진 분석과 추천 요청이 `503` 과 함께 안내 메시지를 반환합니다.
@@ -71,5 +71,8 @@ http://localhost:3000 접속.
 ## 비용에 대한 참고
 
 이미지는 업로드 전에 긴 변 1536px로 줄여서 보냅니다. 원본 사진을 그대로 보내는 것보다
-토큰 사용량이 크게 줄어듭니다. 재료 인식은 `effort: low`, 메뉴 추천은 `effort: medium` 으로
-호출해 품질과 비용을 나눠 잡았습니다.
+토큰 사용량이 크게 줄어듭니다. 재료 인식은 `thinkingLevel: LOW`, 메뉴 추천은 `HIGH` 로
+호출해 속도와 품질을 나눠 잡았습니다.
+
+실측: 1280×960 냉장고 사진 1장 분석에 약 5초 / 이미지 토큰 약 1,100개,
+메뉴 추천 1회에 약 18초가 걸렸습니다.

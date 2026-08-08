@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { MissingApiKeyError, RECIPES_SCHEMA, askForJson } from "../../../lib/claude";
+import { ThinkingLevel } from "@google/genai";
+import { MissingApiKeyError, RECIPES_SCHEMA, askForJson } from "../../../lib/gemini";
 import { ensureSchema, pool, readUserKey } from "../../../lib/db";
 import {
   DEFAULT_PROFILE,
@@ -76,10 +77,10 @@ export async function POST(request: NextRequest) {
 
     const result = await askForJson<{ recipes: Recipe[] }>({
       system: SYSTEM,
-      content: [{ type: "text", text: prompt }],
-      schema: RECIPES_SCHEMA as unknown as Record<string, unknown>,
-      effort: "medium",
-      maxTokens: 16000,
+      parts: [{ text: prompt }],
+      schema: RECIPES_SCHEMA,
+      thinking: ThinkingLevel.HIGH,
+      maxOutputTokens: 16000,
     });
 
     const { rows: saved } = await pool.query<{ id: string; created_at: Date }>(
@@ -97,7 +98,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     if (error instanceof MissingApiKeyError) {
       return NextResponse.json(
-        { error: "서버에 ANTHROPIC_API_KEY가 설정되지 않았습니다." },
+        { error: "서버에 GOOGLE_API_KEY가 설정되지 않았습니다." },
         { status: 503 }
       );
     }

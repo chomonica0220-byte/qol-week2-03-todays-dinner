@@ -1,13 +1,12 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { Part, ThinkingLevel } from "@google/genai";
 import { NextRequest, NextResponse } from "next/server";
-import { INGREDIENTS_SCHEMA, MissingApiKeyError, askForJson } from "../../../lib/claude";
+import { INGREDIENTS_SCHEMA, MissingApiKeyError, askForJson } from "../../../lib/gemini";
 import { Ingredient } from "../../../lib/types";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 const ALLOWED_MEDIA_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
-type AllowedMediaType = (typeof ALLOWED_MEDIA_TYPES)[number];
 
 /** base64 4자 = 원본 3바이트. 약 4MB 원본까지 허용. */
 const MAX_BASE64_LENGTH = 5_600_000;
@@ -29,10 +28,7 @@ export async function POST(request: NextRequest) {
     const imageBase64 = body?.imageBase64;
 
     if (!ALLOWED_MEDIA_TYPES.includes(mediaType)) {
-      return NextResponse.json(
-        { error: "JPEG, PNG, WebP 이미지만 지원합니다." },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "JPEG, PNG, WebP 이미지만 지원합니다." }, { status: 400 });
     }
     if (typeof imageBase64 !== "string" || !imageBase64) {
       return NextResponse.json({ error: "이미지가 필요합니다." }, { status: 400 });
@@ -44,27 +40,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const content: Anthropic.ContentBlockParam[] = [
-      {
-        type: "image",
-        source: { type: "base64", media_type: mediaType as AllowedMediaType, data: imageBase64 },
-      },
-      { type: "text", text: "이 냉장고 사진에서 요리에 쓸 수 있는 식재료를 모두 찾아주세요." },
+    const parts: Part[] = [
+      { inlineData: { mimeType: mediaType, data: imageBase64 } },
+      { text: "이 냉장고 사진에서 요리에 쓸 수 있는 식재료를 모두 찾아주세요." },
     ];
 
     const result = await askForJson<{ ingredients: Ingredient[]; comment: string }>({
       system: SYSTEM,
-      content,
-      schema: INGREDIENTS_SCHEMA as unknown as Record<string, unknown>,
-      effort: "low",
-      maxTokens: 8000,
+      parts,
+      schema: INGREDIENTS_SCHEMA,
+      thinking: ThinkingLevel.LOW,
+      maxOutputTokens: 8000,
     });
 
     return NextResponse.json(result);
   } catch (error) {
     if (error instanceof MissingApiKeyError) {
       return NextResponse.json(
-        { error: "서버에 ANTHROPIC_API_KEY가 설정되지 않았습니다." },
+        { error: "서버에 GOOGLE_API_KEY가 설정되지 않았습니다." },
         { status: 503 }
       );
     }
