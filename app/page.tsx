@@ -1,12 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import ModePanel from "./components/ModePanel";
 import ProfilePanel from "./components/ProfilePanel";
 import RecipeCard from "./components/RecipeCard";
 import { prepareImage } from "../lib/image";
+import { getMode } from "../lib/modes";
+import { computeTargets } from "../lib/nutrition";
 import {
   DEFAULT_PROFILE,
   DinnerSession,
+  DroppedRecipe,
   Ingredient,
   Profile,
   Recipe,
@@ -25,9 +29,12 @@ function loadUserKey(): string {
 async function readError(response: Response, fallback: string) {
   try {
     const data = await response.json();
-    return typeof data?.error === "string" ? data.error : fallback;
+    return {
+      message: typeof data?.error === "string" ? data.error : fallback,
+      dropped: Array.isArray(data?.dropped) ? (data.dropped as DroppedRecipe[]) : [],
+    };
   } catch {
-    return fallback;
+    return { message: fallback, dropped: [] as DroppedRecipe[] };
   }
 }
 
@@ -38,7 +45,9 @@ export default function Home() {
   const [savingProfile, setSavingProfile] = useState(false);
 
   const [preview, setPreview] = useState("");
-  const [pendingImage, setPendingImage] = useState<{ base64: string; mediaType: string } | null>(null);
+  const [pendingImage, setPendingImage] = useState<{ base64: string; mediaType: string } | null>(
+    null
+  );
   const [analyzing, setAnalyzing] = useState(false);
 
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
@@ -46,6 +55,7 @@ export default function Home() {
   const [manualInput, setManualInput] = useState("");
 
   const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [dropped, setDropped] = useState<DroppedRecipe[]>([]);
   const [recommending, setRecommending] = useState(false);
 
   const [history, setHistory] = useState<DinnerSession[]>([]);
@@ -54,6 +64,9 @@ export default function Home() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
+
+  const mode = useMemo(() => getMode(profile.mode), [profile.mode]);
+  const targets = useMemo(() => computeTargets(profile), [profile]);
 
   /* ---------- 초기 로딩 ---------- */
 
@@ -80,7 +93,7 @@ export default function Home() {
     };
   }, []);
 
-  /* ---------- 취향 저장 (디바운스) ---------- */
+  /* ---------- 설정 저장 (디바운스) ---------- */
 
   const updateProfile = useCallback(
     (next: Profile) => {
@@ -96,9 +109,11 @@ export default function Home() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(next),
           });
-          if (!response.ok) throw new Error(await readError(response, "저장 실패"));
+          if (!response.ok) {
+            throw new Error((await readError(response, "설정을 저장하지 못했습니다.")).message);
+          }
         } catch (saveError) {
-          setError(saveError instanceof Error ? saveError.message : "취향을 저장하지 못했습니다.");
+          setError(saveError instanceof Error ? saveError.message : "설정을 저장하지 못했습니다.");
         } finally {
           setSavingProfile(false);
         }
@@ -119,6 +134,7 @@ export default function Home() {
     if (!file) return;
     setError("");
     setRecipes([]);
+    setDropped([]);
     try {
       const prepared = await prepareImage(file);
       setPreview(prepared.previewUrl);
@@ -142,9 +158,14 @@ export default function Home() {
       const response = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageBase64: pendingImage.base64, mediaType: pendingImage.mediaType }),
+        body: JSON.stringify({
+          imageBase64: pendingImage.base64,
+          mediaType: pendingImage.mediaType,
+        }),
       });
-      if (!response.ok) throw new Error(await readError(response, "사진을 분석하지 못했습니다."));
+      if (!response.ok) {
+        throw new Error((await readError(response, "사진을 분석하지 못했습니다.")).message);
+      }
 
       const data: { ingredients: Ingredient[]; comment: string } = await response.json();
       // 이미 담아둔 재료는 유지하고, 새로 찾은 것만 합친다.
@@ -183,18 +204,36 @@ export default function Home() {
     if (!userKey || !ingredients.length) return;
     setRecommending(true);
     setError("");
+    setDropped([]);
     try {
       const response = await fetch(`/api/recommend?user=${userKey}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ingredients }),
       });
-      if (!response.ok) throw new Error(await readError(response, "추천을 만들지 못했습니다."));
+      if (!response.ok) {
+        const failure = await readError(response, "추천을 만들지 못했습니다.");
+        setDropped(failure.dropped);
+        throw new Error(failure.message);
+      }
 
-      const data: { id: number; createdAt: string; recipes: Recipe[] } = await response.json();
+      const data: {
+        id: number;
+        createdAt: string;
+        recipes: Recipe[];
+        dropped: DroppedRecipe[];
+      } = await response.json();
+
       setRecipes(data.recipes);
+      setDropped(data.dropped ?? []);
       setHistory((prev) => [
-        { id: data.id, createdAt: data.createdAt, ingredients, recipes: data.recipes },
+        {
+          id: data.id,
+          createdAt: data.createdAt,
+          ingredients,
+          recipes: data.recipes,
+          mode: profile.mode,
+        },
         ...prev.slice(0, 9),
       ]);
       requestAnimationFrame(() => resultsRef.current?.scrollIntoView({ behavior: "smooth" }));
@@ -205,21 +244,23 @@ export default function Home() {
     } finally {
       setRecommending(false);
     }
-  }, [userKey, ingredients]);
+  }, [userKey, ingredients, profile.mode]);
 
   /* ---------- 렌더링 ---------- */
 
   return (
-    <main className="app">
+    <main className="app" style={{ ["--mode-accent" as string]: mode.accent }}>
       <header>
-        <p className="header__eyebrow">Today&apos;s Dinner</p>
-        <h1 className="header__title">냉장고를 부탁해</h1>
+        <p className="header__eyebrow">Diet Fridge</p>
+        <h1 className="header__title">다이어터를 위한 냉장고를 부탁해</h1>
         <p className="header__desc">
-          사진 속 재료를 알아보고, 내 취향에 맞는 메뉴를 골라드려요.
+          냉장고를 찍으면 <b>{mode.label}</b> 기준으로 오늘 먹을 요리를 골라드려요.
         </p>
       </header>
 
       {error ? <p className="notice notice--error">{error}</p> : null}
+
+      <ModePanel profile={profile} targets={targets} onChange={updateProfile} />
 
       <ProfilePanel
         profile={profile}
@@ -232,7 +273,7 @@ export default function Home() {
       <section className="card">
         <div className="card__head">
           <h2 className="card__title">
-            <span className="step-badge">2</span>냉장고 사진
+            <span className="step-badge">3</span>냉장고 사진
           </h2>
           {preview ? (
             <button type="button" className="link-button" onClick={clearImage}>
@@ -276,7 +317,12 @@ export default function Home() {
 
         {pendingImage ? (
           <div className="stack">
-            <button type="button" className="button" onClick={() => void analyze()} disabled={analyzing}>
+            <button
+              type="button"
+              className="button"
+              onClick={() => void analyze()}
+              disabled={analyzing}
+            >
               {analyzing ? (
                 <>
                   <span className="spinner" aria-hidden="true" />
@@ -294,7 +340,7 @@ export default function Home() {
         <section className="card">
           <div className="card__head">
             <h2 className="card__title">
-              <span className="step-badge">3</span>찾은 재료 {ingredients.length}개
+              <span className="step-badge">4</span>찾은 재료 {ingredients.length}개
             </h2>
           </div>
           {comment ? <p className="card__hint">{comment}</p> : null}
@@ -349,13 +395,32 @@ export default function Home() {
               {recommending ? (
                 <>
                   <span className="spinner" aria-hidden="true" />
-                  메뉴를 고르는 중…
+                  {mode.label} 기준으로 고르는 중…
                 </>
               ) : (
-                "오늘 저녁 메뉴 추천받기"
+                `${mode.label} 메뉴 추천받기`
               )}
             </button>
           </div>
+        </section>
+      ) : null}
+
+      {dropped.length > 0 ? (
+        <section className="card">
+          <div className="card__head">
+            <h2 className="card__title">걸러낸 요리 {dropped.length}개</h2>
+          </div>
+          <p className="card__hint">
+            아래 요리는 규칙을 어겨서 서버가 결과에서 뺐습니다.
+          </p>
+          <ul className="dropped">
+            {dropped.map((item) => (
+              <li key={item.name}>
+                <b>{item.name}</b>
+                <span>{item.reason}</span>
+              </li>
+            ))}
+          </ul>
         </section>
       ) : null}
 
@@ -363,11 +428,17 @@ export default function Home() {
         <section ref={resultsRef}>
           <div className="card__head" style={{ marginBottom: 12 }}>
             <h2 className="card__title">
-              <span className="step-badge">4</span>오늘의 추천
+              <span className="step-badge">5</span>오늘의 추천
             </h2>
           </div>
           {recipes.map((recipe, index) => (
-            <RecipeCard key={recipe.name} recipe={recipe} rank={index + 1} />
+            <RecipeCard
+              key={recipe.name}
+              recipe={recipe}
+              rank={index + 1}
+              mode={mode}
+              targets={targets}
+            />
           ))}
         </section>
       ) : null}
@@ -387,6 +458,7 @@ export default function Home() {
                     hour: "2-digit",
                     minute: "2-digit",
                   })}
+                  {session.mode ? ` · ${getMode(session.mode).label}` : ""}
                 </p>
                 <p className="history__menus">
                   {session.recipes.map((recipe) => recipe.name).join(" · ")}
@@ -396,6 +468,11 @@ export default function Home() {
           </div>
         </section>
       ) : null}
+
+      <p className="disclaimer disclaimer--page">
+        이 앱이 보여주는 영양 수치는 AI 추정값이며 의료·영양 조언이 아닙니다. 질환을 관리 중이라면
+        담당 전문가의 지침을 우선하세요.
+      </p>
     </main>
   );
 }

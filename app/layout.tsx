@@ -2,9 +2,14 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "오늘의 저녁",
-  description: "냉장고 사진을 찍으면 오늘 만들 수 있는 저녁 메뉴를 추천해드려요",
-  appleWebApp: { capable: true, title: "오늘의 저녁", statusBarStyle: "black-translucent" },
+  title: "다이어터를 위한 냉장고를 부탁해",
+  description:
+    "냉장고 사진을 찍으면 내가 고른 다이어트 모드에 맞는 요리를 영양 정보와 함께 골라드려요",
+  appleWebApp: {
+    capable: true,
+    title: "냉장고를 부탁해",
+    statusBarStyle: "black-translucent",
+  },
 };
 
 export const viewport: Viewport = {

@@ -9,6 +9,9 @@
   --accent-dim: #d85f31;
   --fresh: #7bc96f;
   --danger: #f2565b;
+  --warn: #e6b53c;
+  /* 고른 다이어트 모드의 색. app과 각 카드가 덮어쓴다. */
+  --mode-accent: #7bc96f;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-top: env(safe-area-inset-top, 0px);
 }
@@ -504,6 +507,405 @@ textarea {
 .history__menus {
   margin: 5px 0 0;
   line-height: 1.5;
+}
+
+/* ---------- 다이어트 모드 ---------- */
+
+.chip:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* 선택된 모드는 앱의 주황이 아니라 그 모드의 색을 쓴다. */
+.chip--mode {
+  background: var(--mode-accent);
+  border-color: var(--mode-accent);
+  color: #16131a;
+  font-weight: 700;
+}
+
+.chip--danger {
+  background: rgba(242, 86, 91, 0.16);
+  border-color: rgba(242, 86, 91, 0.5);
+  color: #ffb3b5;
+  font-weight: 700;
+}
+
+.mode-detail {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.mode-detail__tagline {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--mode-accent);
+}
+
+.mode-detail__who {
+  margin: 6px 0 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-dim);
+}
+
+.macro-bar {
+  display: flex;
+  height: 8px;
+  margin-top: 14px;
+  border-radius: 5px;
+  overflow: hidden;
+  background: var(--surface-2);
+}
+
+.macro-bar__seg {
+  display: block;
+  height: 100%;
+  background: var(--mode-accent);
+}
+
+.macro-bar__seg--protein {
+  opacity: 0.58;
+}
+
+.macro-bar__seg--fat {
+  opacity: 0.26;
+}
+
+.macro-bar__key {
+  margin: 7px 0 0;
+  font-size: 12px;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.target-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.target {
+  padding: 10px 11px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.target__label {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.target__value {
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--mode-accent);
+}
+
+.rule-list {
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rule-list li {
+  position: relative;
+  padding-left: 16px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-dim);
+}
+
+.rule-list li::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 8px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--mode-accent);
+}
+
+.notice--warn {
+  background: rgba(230, 181, 60, 0.12);
+  border: 1px solid rgba(230, 181, 60, 0.4);
+  color: #f0d492;
+  font-size: 13px;
+}
+
+/* ---------- 신체 정보 입력 ---------- */
+
+.num-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.num-field {
+  min-width: 0;
+}
+
+.num-field__label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.num-field__input {
+  position: relative;
+}
+
+.num-field__input .text-input {
+  padding-right: 42px;
+}
+
+/* 브라우저 기본 스피너는 좁은 칸에서 값을 가린다. */
+.num-field__input input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.num-field__input input[type="number"]::-webkit-outer-spin-button,
+.num-field__input input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.num-field__unit {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 13px;
+  color: var(--text-dim);
+  pointer-events: none;
+}
+
+.ingredient--danger {
+  border-color: rgba(242, 86, 91, 0.5);
+  background: rgba(242, 86, 91, 0.12);
+  color: #ffb3b5;
+}
+
+/* ---------- 결과 카드 ---------- */
+
+.recipe__toprow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.fit {
+  flex-shrink: 0;
+  padding: 4px 9px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.fit--high {
+  background: rgba(123, 201, 111, 0.16);
+  color: var(--fresh);
+}
+
+.fit--mid {
+  background: rgba(230, 181, 60, 0.16);
+  color: var(--warn);
+}
+
+.fit--low {
+  background: rgba(242, 86, 91, 0.14);
+  color: var(--danger);
+}
+
+.stat {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--surface-2);
+}
+
+.stat__label {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.stat__value {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--mode-accent);
+}
+
+.stat__side {
+  margin-left: auto;
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  font-size: 13px;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.delta {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+.delta--over {
+  background: rgba(242, 86, 91, 0.14);
+  color: var(--danger);
+}
+
+.delta--under {
+  background: rgba(123, 201, 111, 0.14);
+  color: var(--fresh);
+}
+
+.nutri {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.nutri__item {
+  padding: 5px 9px;
+  border-radius: 8px;
+  background: var(--surface-2);
+  font-size: 12px;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.nutri__item b {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.swaps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.swaps li {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.swaps__from {
+  color: var(--text-dim);
+  text-decoration: line-through;
+}
+
+.swaps__arrow {
+  color: var(--mode-accent);
+}
+
+.swaps__to {
+  font-weight: 700;
+}
+
+.swaps__effect {
+  margin-left: auto;
+  padding: 3px 8px;
+  border-radius: 7px;
+  background: var(--surface-2);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--mode-accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.eat-order {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.eat-order li {
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.eat-order li::marker {
+  color: var(--mode-accent);
+  font-weight: 700;
+}
+
+.dropped {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dropped li {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 11px 13px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  border-left: 3px solid var(--danger);
+}
+
+.dropped b {
+  font-size: 14px;
+}
+
+.dropped span {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-dim);
+}
+
+.disclaimer {
+  margin: 18px 0 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-dim);
+}
+
+.disclaimer--page {
+  margin-top: 8px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
 }
 
 @keyframes spin {
