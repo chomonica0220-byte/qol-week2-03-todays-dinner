@@ -438,6 +438,7 @@ export default function Home() {
               rank={index + 1}
               mode={mode}
               targets={targets}
+              userKey={userKey}
             />
           ))}
         </section>

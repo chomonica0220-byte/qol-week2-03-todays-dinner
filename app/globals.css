@@ -703,6 +703,60 @@ textarea {
 
 /* ---------- 결과 카드 ---------- */
 
+/* 완성 사진 */
+
+.dish {
+  position: relative;
+  line-height: 0;
+  background: var(--surface-2);
+}
+
+.dish img {
+  width: 100%;
+  display: block;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+
+/* 만드는 동안 자리를 잡아둔다. 이미지가 늦게 와도 카드가 튀지 않는다. */
+.dish--loading {
+  aspect-ratio: 4 / 3;
+  background: linear-gradient(
+    100deg,
+    var(--surface-2) 30%,
+    var(--border) 50%,
+    var(--surface-2) 70%
+  );
+  background-size: 220% 100%;
+  animation: dish-shimmer 1.4s ease-in-out infinite;
+}
+
+.dish--loading img {
+  opacity: 0;
+}
+
+.dish__tag {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  padding: 4px 9px;
+  border-radius: 7px;
+  background: rgba(23, 21, 26, 0.78);
+  color: var(--text-dim);
+  font-size: 11px;
+  line-height: 1.4;
+  letter-spacing: 0.02em;
+}
+
+@keyframes dish-shimmer {
+  from {
+    background-position: 140% 0;
+  }
+  to {
+    background-position: -40% 0;
+  }
+}
+
 .recipe__toprow {
   display: flex;
   align-items: center;

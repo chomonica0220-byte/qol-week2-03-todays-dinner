@@ -33,16 +33,46 @@ function fitTone(fit: number): string {
   return "fit--low";
 }
 
+/**
+ * 완성 사진.
+ *
+ * 첫 요청은 서버가 그림을 만드느라 몇 초 걸린다. 그동안 스켈레톤을 보여주고,
+ * 실패하면 자리를 통째로 비운다 — 사진이 없어도 레시피는 쓸 수 있어서
+ * 에러 문구로 카드를 어지럽힐 이유가 없다.
+ */
+function RecipeImage({ name, userKey }: { name: string; userKey: string }) {
+  const [state, setState] = useState<"loading" | "ready" | "failed">("loading");
+
+  if (!userKey || state === "failed") return null;
+
+  const src = `/api/recipe-image?user=${encodeURIComponent(userKey)}&name=${encodeURIComponent(name)}`;
+
+  return (
+    <div className={`dish ${state === "loading" ? "dish--loading" : ""}`}>
+      <img
+        src={src}
+        alt={`${name} 완성 사진`}
+        loading="lazy"
+        onLoad={() => setState("ready")}
+        onError={() => setState("failed")}
+      />
+      {state === "ready" ? <span className="dish__tag">AI 생성 이미지</span> : null}
+    </div>
+  );
+}
+
 export default function RecipeCard({
   recipe,
   rank,
   mode,
   targets,
+  userKey,
 }: {
   recipe: Recipe;
   rank: number;
   mode: DietMode;
   targets: Targets | null;
+  userKey: string;
 }) {
   const [open, setOpen] = useState(rank === 1);
   const ready = recipe.missingIngredients.length === 0;
@@ -55,6 +85,7 @@ export default function RecipeCard({
 
   return (
     <article className="recipe" style={{ ["--mode-accent" as string]: mode.accent }}>
+      <RecipeImage name={recipe.name} userKey={userKey} />
       <button
         type="button"
         className="recipe__head"
