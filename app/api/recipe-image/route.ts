@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureSchema, pool, readUserKey } from "../../../lib/db";
 import { MissingApiKeyError } from "../../../lib/gemini";
-import { getOrCreateImage } from "../../../lib/images";
+import { IMAGE_MODEL, getOrCreateImage, listImageModels } from "../../../lib/images";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -40,9 +40,31 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "추천받은 적 없는 요리입니다." }, { status: 403 });
     }
 
-    const image = await getOrCreateImage(name);
+    // 이 키로 어떤 이미지 모델을 쓸 수 있는지 확인용. 모델 이름 고를 때만 쓴다.
+    if (new URL(request.url).searchParams.get("models") === "1") {
+      return NextResponse.json({ current: IMAGE_MODEL, available: await listImageModels() });
+    }
+
+    let image;
+    try {
+      image = await getOrCreateImage(name);
+    } catch (generationError) {
+      // 소유권 검사를 통과한 뒤에만 닿는 곳이라 원인을 그대로 알려준다.
+      // 모델 이름이나 할당량 문제는 감춰봐야 고칠 수가 없다.
+      const reason =
+        generationError instanceof Error ? generationError.message : String(generationError);
+      console.error("recipe image generation failed", generationError);
+      return NextResponse.json(
+        { error: "사진을 만들지 못했습니다.", model: IMAGE_MODEL, reason: reason.slice(0, 600) },
+        { status: 502 }
+      );
+    }
+
     if (!image) {
-      return NextResponse.json({ error: "사진을 만들지 못했습니다." }, { status: 404 });
+      return NextResponse.json(
+        { error: "모델이 이미지를 돌려주지 않았습니다.", model: IMAGE_MODEL },
+        { status: 502 }
+      );
     }
 
     const body = Buffer.from(image.data, "base64");

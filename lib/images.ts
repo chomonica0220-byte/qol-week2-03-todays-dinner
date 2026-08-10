@@ -115,4 +115,18 @@ export async function getOrCreateImage(name: string): Promise<CachedImage | null
   return made;
 }
 
+/**
+ * 이 API 키로 쓸 수 있는 모델 중 이미지가 나올 만한 것들.
+ * 모델 이름은 계정 등급에 따라 다르고 문서보다 빨리 바뀌어서, 추측하지 않고 물어본다.
+ */
+export async function listImageModels(): Promise<string[]> {
+  const found: string[] = [];
+  const pager = await genAI().models.list();
+  for await (const model of pager) {
+    const id = (model.name ?? "").replace(/^models\//, "");
+    if (/image|imagen/i.test(id)) found.push(id);
+  }
+  return found.sort();
+}
+
 export { MissingApiKeyError };
