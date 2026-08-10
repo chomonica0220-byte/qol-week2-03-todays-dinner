@@ -198,8 +198,10 @@ function checkRecipe(
     const hit = findKeyword(text, plants);
     if (hit) return `카니보어 모드인데 식물성 재료(${hit})가 들어 있습니다.`;
     if (!profile.allowDairy) {
+      // 조사를 붙이지 않는다. 재료 이름의 받침에 따라 "이/가"가 갈려서
+      // 앞에 고정 명사(유제품)를 두고 괄호로 묶는다.
       const dairy = findKeyword(text, DAIRY_KEYWORDS);
-      if (dairy) return `유제품을 빼기로 했는데 ${dairy}이(가) 들어 있습니다.`;
+      if (dairy) return `유제품을 빼기로 했는데 유제품(${dairy})이 들어 있습니다.`;
     }
   }
 
