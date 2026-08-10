@@ -79,22 +79,6 @@ export function ensureSchema(): Promise<void> {
         `ALTER TABLE dinner_sessions ADD COLUMN IF NOT EXISTS mode TEXT`
       );
 
-      /* 완성 사진 캐시.
-       *
-       * 요리 이름은 사용자를 가로질러 반복되므로 이름 기준으로 한 번만 만들고 재사용한다.
-       * 바이트를 그대로 들고 있는 이유는 별도 스토리지 자격증명 없이 도는 게 우선이라서다.
-       * 커지면 Supabase Storage나 Blob으로 옮기고 url 컬럼만 바꾸면 된다. */
-      await pool.query(`
-        CREATE TABLE IF NOT EXISTS recipe_images (
-          slug TEXT PRIMARY KEY,
-          mime TEXT NOT NULL,
-          data TEXT NOT NULL,
-          bytes INTEGER NOT NULL,
-          origin TEXT NOT NULL,
-          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        )
-      `);
-
       /* 구버전의 단일 diet 필드를 목표(mode)와 제한(restrictions) 두 축으로 옮긴다.
        * restrictions가 비어 있는 행에만 적용되므로 여러 번 실행해도 안전하다. */
       await pool.query(`

@@ -142,6 +142,7 @@ const RECIPE_FIELDS = [
   "missingIngredients",
   "steps",
   "reason",
+  "commonName",
   "nutrition",
   "netCarb",
   "giLevel",
@@ -175,6 +176,13 @@ export const RECIPES_SCHEMA: Schema = {
           },
           steps: { type: Type.ARRAY, items: { type: Type.STRING }, description: "조리 순서" },
           reason: { type: Type.STRING, description: "이 사용자에게 추천하는 이유" },
+          commonName: {
+            type: Type.STRING,
+            description:
+              "이 요리와 가장 가까운, 한국에서 널리 통용되는 표준 요리 이름 하나. " +
+              '수식어 없이 짧게 쓰세요. 예: "두부조림", "닭가슴살샐러드", "된장찌개". ' +
+              "창작한 이름이 아니라 누구나 아는 이름이어야 합니다.",
+          },
           nutrition: NUTRITION_SCHEMA,
           netCarb: {
             type: Type.INTEGER,

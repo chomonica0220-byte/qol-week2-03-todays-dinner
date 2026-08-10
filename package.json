@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "photos": "node scripts/build-recipe-photos.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.16.0",

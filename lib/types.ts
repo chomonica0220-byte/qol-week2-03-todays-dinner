@@ -169,6 +169,14 @@ export type Recipe = {
   steps: string[];
   reason: string;
 
+  /** 이 요리와 가장 가까운, 널리 쓰이는 한식 이름. 공공 DB 사진을 찾는 데 쓴다. */
+  commonName: string;
+  /**
+   * 공공 레시피 DB에서 찾은 실사 사진. 모델이 아니라 서버가 붙인다.
+   * 이름이 확실히 맞을 때만 붙으므로 대부분의 레시피에는 없다.
+   */
+  photo?: { url: string; dish: string } | null;
+
   /* 다이어터 버전에서 추가된 것 */
   nutrition: Nutrition;
   /** 총탄수 − 식이섬유. 키토 모드의 대표 지표. */

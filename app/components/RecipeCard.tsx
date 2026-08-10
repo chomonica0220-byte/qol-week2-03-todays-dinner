@@ -36,27 +36,23 @@ function fitTone(fit: number): string {
 /**
  * 완성 사진.
  *
- * 첫 요청은 서버가 그림을 만드느라 몇 초 걸린다. 그동안 스켈레톤을 보여주고,
- * 실패하면 자리를 통째로 비운다 — 사진이 없어도 레시피는 쓸 수 있어서
- * 에러 문구로 카드를 어지럽힐 이유가 없다.
+ * 공공 레시피 DB에서 이름이 확실히 맞을 때만 붙는다. 사진 속 요리 이름이
+ * 추천 이름과 다를 수 있어서 무엇을 찍은 사진인지 함께 밝힌다.
+ * 원격 이미지가 죽어 있으면 자리를 통째로 비운다 — 깨진 이미지 아이콘보다 낫다.
  */
-function RecipeImage({ name, userKey }: { name: string; userKey: string }) {
-  const [state, setState] = useState<"loading" | "ready" | "failed">("loading");
-
-  if (!userKey || state === "failed") return null;
-
-  const src = `/api/recipe-image?user=${encodeURIComponent(userKey)}&name=${encodeURIComponent(name)}`;
+function RecipeImage({ photo }: { photo: NonNullable<Recipe["photo"]> }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return null;
 
   return (
-    <div className={`dish ${state === "loading" ? "dish--loading" : ""}`}>
+    <div className="dish">
       <img
-        src={src}
-        alt={`${name} 완성 사진`}
+        src={photo.url}
+        alt={`${photo.dish} 사진`}
         loading="lazy"
-        onLoad={() => setState("ready")}
-        onError={() => setState("failed")}
+        onError={() => setFailed(true)}
       />
-      {state === "ready" ? <span className="dish__tag">AI 생성 이미지</span> : null}
+      <span className="dish__tag">{photo.dish} · 식품의약품안전처</span>
     </div>
   );
 }
@@ -66,13 +62,11 @@ export default function RecipeCard({
   rank,
   mode,
   targets,
-  userKey,
 }: {
   recipe: Recipe;
   rank: number;
   mode: DietMode;
   targets: Targets | null;
-  userKey: string;
 }) {
   const [open, setOpen] = useState(rank === 1);
   const ready = recipe.missingIngredients.length === 0;
@@ -85,7 +79,7 @@ export default function RecipeCard({
 
   return (
     <article className="recipe" style={{ ["--mode-accent" as string]: mode.accent }}>
-      <RecipeImage name={recipe.name} userKey={userKey} />
+      {recipe.photo ? <RecipeImage photo={recipe.photo} /> : null}
       <button
         type="button"
         className="recipe__head"

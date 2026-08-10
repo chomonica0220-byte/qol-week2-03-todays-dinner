@@ -5,6 +5,7 @@ import { ensureSchema, pool, readUserKey } from "../../../lib/db";
 import { loadProfile } from "../../../lib/profile";
 import { DietMode, METRIC_LABELS, getMode } from "../../../lib/modes";
 import { Targets, computeTargets } from "../../../lib/nutrition";
+import { findPhoto } from "../../../lib/recipe-photos";
 import { filterRecipes, restrictionPromptLines } from "../../../lib/rules";
 import {
   ACTIVITY_LABELS,
@@ -37,6 +38,9 @@ const BASE_SYSTEM = `당신은 다이어트 중인 사람의 냉장고 사진을
   세 요리에 같은 점수를 주지 말고 차이를 두세요.
 - modeReason에는 그 점수의 근거를 숫자와 함께 한 문장으로 쓰세요.
 - swaps에는 이 모드에 더 맞게 만드는 재료 교체를 1~3개 제안하고, effect에 변화량을 숫자로 쓰세요.
+- commonName에는 이 요리와 가장 가까운 표준 요리 이름을 쓰세요. 요리 사진을 찾는 데 씁니다.
+  name이 창작한 이름이라면 commonName은 반드시 누구나 아는 이름이어야 합니다.
+  예: name "매콤 마늘 닭가슴살 브로콜리 볶음" → commonName "닭가슴살볶음".
 
 우선순위: 알러지 > 식단 제한 > 다이어트 모드의 하드룰 > 목표 열량과 단백질 > 맛과 취향.
 앞의 것을 지키기 위해 뒤의 것은 포기해도 됩니다.`;
@@ -169,18 +173,25 @@ export async function POST(request: NextRequest) {
     // 적합도가 높은 순으로 보여준다. 모델이 매긴 순서를 그대로 믿지 않는다.
     kept.sort((a, b) => b.modeFit - a.modeFit);
 
+    // 공공 DB에 같은 요리가 있으면 실사 사진을 붙인다. 확실할 때만 붙으므로
+    // 대부분의 레시피에는 photo가 없고, 카드는 사진 없이 그려진다.
+    const withPhotos = kept.map((recipe) => ({
+      ...recipe,
+      photo: findPhoto(recipe.name, recipe.commonName),
+    }));
+
     const { rows: saved } = await pool.query<{ id: string; created_at: Date }>(
       `INSERT INTO dinner_sessions (user_key, ingredients, recipes, mode)
             VALUES ($1, $2, $3, $4)
          RETURNING id, created_at`,
-      [userKey, JSON.stringify(ingredients), JSON.stringify(kept), profile.mode]
+      [userKey, JSON.stringify(ingredients), JSON.stringify(withPhotos), profile.mode]
     );
 
     return NextResponse.json({
       id: Number(saved[0].id),
       createdAt: saved[0].created_at.toISOString(),
       mode: profile.mode,
-      recipes: kept,
+      recipes: withPhotos,
       dropped,
       targets,
     });
