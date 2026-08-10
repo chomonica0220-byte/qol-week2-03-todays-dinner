@@ -68,7 +68,33 @@ function extractImage(parts: unknown): { mime: string; data: string } | null {
   return null;
 }
 
+/** 결제가 꺼져 있으면 이미지 모델의 무료 등급 한도가 0이라 매번 429가 돌아온다. */
+export class ImageQuotaError extends Error {
+  constructor(detail: string) {
+    super(detail);
+    this.name = "ImageQuotaError";
+  }
+}
+
+declare global {
+  // eslint-disable-next-line no-var
+  var dinnerImageBlockedUntil: number | undefined;
+}
+
+/** 한도가 0이면 다시 불러도 결과가 같다. 잠깐 쉬었다가 다시 본다. */
+const QUOTA_COOLDOWN_MS = 10 * 60 * 1000;
+
+function isQuotaError(error: unknown): boolean {
+  const text = error instanceof Error ? error.message : String(error);
+  return text.includes('"code":429') || text.includes("RESOURCE_EXHAUSTED");
+}
+
 async function generate(name: string): Promise<CachedImage | null> {
+  const blockedUntil = globalThis.dinnerImageBlockedUntil ?? 0;
+  if (Date.now() < blockedUntil) {
+    throw new ImageQuotaError("이미지 생성 할당량이 없어 잠시 중단된 상태입니다.");
+  }
+
   const response = await genAI().models.generateContent({
     model: IMAGE_MODEL,
     contents: [{ role: "user", parts: [{ text: buildPrompt(name) }] }],
@@ -97,7 +123,18 @@ export async function getOrCreateImage(name: string): Promise<CachedImage | null
   const cached = await readCache(slug);
   if (cached) return cached;
 
-  const made = await generate(name);
+  let made: CachedImage | null;
+  try {
+    made = await generate(name);
+  } catch (error) {
+    // 한도 초과는 계속 두드려도 달라지지 않는다. 카드마다 요청이 나가므로
+    // 한 번 막히면 잠시 멈춰서 실패한 호출을 반복하지 않는다.
+    if (isQuotaError(error)) {
+      globalThis.dinnerImageBlockedUntil = Date.now() + QUOTA_COOLDOWN_MS;
+      throw new ImageQuotaError(error instanceof Error ? error.message : String(error));
+    }
+    throw error;
+  }
   if (!made) return null;
 
   const bytes = Buffer.byteLength(made.data, "base64");
@@ -113,20 +150,6 @@ export async function getOrCreateImage(name: string): Promise<CachedImage | null
   }
 
   return made;
-}
-
-/**
- * 이 API 키로 쓸 수 있는 모델 중 이미지가 나올 만한 것들.
- * 모델 이름은 계정 등급에 따라 다르고 문서보다 빨리 바뀌어서, 추측하지 않고 물어본다.
- */
-export async function listImageModels(): Promise<string[]> {
-  const found: string[] = [];
-  const pager = await genAI().models.list();
-  for await (const model of pager) {
-    const id = (model.name ?? "").replace(/^models\//, "");
-    if (/image|imagen/i.test(id)) found.push(id);
-  }
-  return found.sort();
 }
 
 export { MissingApiKeyError };
